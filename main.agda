@@ -2,7 +2,7 @@ data ℕ : Set where
   zero : ℕ
   suc : ℕ → ℕ
 
-infix 21 _::_
+infix 40 _::_
 data List (A : Set) : Set where
   [] : List A
   _::_ : A → List A → List A
@@ -21,14 +21,14 @@ _++_ : {A : Set} → List A → List A → List A
 
 data Vec (A : Set) : ℕ → Set where
   [] : Vec A zero
-  _::_ : {n : ℕ} → A → Vec A n → Vec A (suc n)
+  _::_ : {n : ℕ} (x : A) (xs : Vec A n) → Vec A (suc n)
 
 head : {A : Set}{n : ℕ} → Vec A (suc n) → A
 head (x :: _) = x
 
 vmap : {A B : Set}{n : ℕ} → (A → B) → Vec A n → Vec B n
 vmap f [] = []
-vmap f (x :: xs) = f x :: vmap f xs
+vmap f (x :: x₁) = f x :: vmap f x₁
 
 data False : Set where
 record True : Set where
@@ -59,7 +59,7 @@ lookup [] n ()
 lookup (x :: _) zero _ = x
 lookup (_ :: xs) (suc n) p = lookup xs n p
 
-data _==_ {A : Set}(x : A) : A → Set where
+data _==_ {A : Set} (x : A) : A → Set where
   refl : x == x
 
 x : zero == zero
@@ -155,25 +155,36 @@ _$_ : {n : ℕ}{A B : Set} → Vec (A → B) n → Vec A n → Vec B n
 [] $ [] = []
 (f :: fs) $ (x :: xs) = f x :: fs $ xs
 
-fin : (n : ℕ) → Fin (suc n)
-fin zero = fzero
-fin (suc m) = fsuc (fin m)
-
-nat : {max : ℕ} → Fin max → ℕ
-nat fzero = zero
-nat (fsuc n) = suc (nat n)
-
-relax : {max : ℕ} → Fin max → Fin (suc max)
-relax fzero = fzero
-relax (fsuc n) = fsuc (relax n)
-
-range : (max : ℕ) (n : Fin max) → Vec (Fin max) (nat n)
-range (suc max) fzero = []
-range (suc (suc max)) (fsuc fzero) = fzero :: range (suc (suc max)) fzero
-range (suc max) (fsuc n) = n :: range (suc max) ?
-
-{-
 transpose : ∀ {A m n} → Matrix A m n → Matrix A n m
-transpose {m} {n} mat =
-  (\idx → (vec {m} (\r → r ! fzero)) $ mat) $ (range n)
--}
+transpose []  = vec []
+transpose (mat :: mats) = vmap _::_ mat $ transpose mats
+-- vmap (λ z₁ z₂ → z₂ :: z₁) (transpose mats) $ mat
+
+tabulate : {n : ℕ}{A : Set} -> (Fin n -> A) -> Vec A n
+tabulate {zero}  f = []
+tabulate {suc n} f = f fzero :: tabulate (λ x → f (fsuc x))
+
+lem-!-tab : forall {A n} (f : Fin n -> A)(i : Fin n) -> ((tabulate f) ! i) == f i
+lem-!-tab f fzero = refl
+lem-!-tab f (fsuc i) = lem-!-tab (λ z₁ → f (fsuc z₁)) i
+
+cons : ∀ {A n} (x : A) (xs : Vec A n) → Vec A (suc n)
+cons x xs = x :: xs
+
+cong-::-r : ∀ {A : Set } {n : ℕ} {x : A} {xs ys : Vec A n} → (xs == ys) → cons x xs == cons x ys
+cong-::-r {n = zero} refl = refl
+cong-::-r {n = suc n} refl = refl
+
+lem-tab-! : forall {A n} (xs : Vec A n) -> tabulate (_!_ xs) == xs
+lem-tab-! [] = refl
+lem-tab-! (x :: xs) = cong-::-r (lem-tab-! xs)
+
+⊆-refl : {A : Set}{xs : List A} -> xs ⊆ xs
+⊆-refl {xs = []} = stop
+⊆-refl {xs = x :: xs} = keep ⊆-refl
+
+⊆-trans : {A : Set}{xs ys zs : List A} -> xs ⊆ ys -> ys ⊆ zs -> xs ⊆ zs
+⊆-trans p stop = p
+⊆-trans p (drop q) = drop (⊆-trans p q)
+⊆-trans (drop p) (keep q) = drop (⊆-trans p q)
+⊆-trans (keep p) (keep q) = keep (⊆-trans p q)
