@@ -176,4 +176,4 @@ range (suc max) (fsuc n) = n :: range (suc max) ?
 transpose : ∀ {A m n} → Matrix A m n → Matrix A n m
 transpose {m} {n} mat =
   (\idx → (vec {m} (\r → r ! fzero)) $ mat) $ (range n)
-  -}
+-}
